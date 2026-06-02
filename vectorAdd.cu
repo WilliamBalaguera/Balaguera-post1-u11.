@@ -1,11 +1,4 @@
-/**
- * vectorAdd.cu
- * Suma de vectores en CUDA con benchmark CPU vs GPU
- * Arquitectura de Computadores — Unidad 11, Post-Contenido 1
- *
- * Compilar: nvcc -O2 -o vectorAdd src/vectorAdd.cu
- * Ejecutar: ./vectorAdd
- */
+
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -13,9 +6,7 @@
 #include <time.h>
 #include <cuda_runtime.h>
 
-/* ---------------------------------------------------------------
- * Macro para verificar errores CUDA
- * --------------------------------------------------------------- */
+
 #define CUDA_CHECK(call)                                                  \
     do {                                                                  \
         cudaError_t err = (call);                                         \
@@ -26,9 +17,7 @@
         }                                                                 \
     } while (0)
 
-/* ---------------------------------------------------------------
- * Kernel CUDA: cada thread calcula un elemento de C = A + B
- * --------------------------------------------------------------- */
+
 __global__ void vectorAdd(const float *d_A, const float *d_B,
                           float *d_C, int n)
 {
@@ -37,9 +26,7 @@ __global__ void vectorAdd(const float *d_A, const float *d_B,
         d_C[idx] = d_A[idx] + d_B[idx];
 }
 
-/* ---------------------------------------------------------------
- * Suma de vectores en CPU (implementación de referencia)
- * --------------------------------------------------------------- */
+
 void vectorAddCPU(const float *h_A, const float *h_B,
                   float *h_C, int n)
 {
@@ -47,9 +34,7 @@ void vectorAddCPU(const float *h_A, const float *h_B,
         h_C[i] = h_A[i] + h_B[i];
 }
 
-/* ---------------------------------------------------------------
- * Función que ejecuta el benchmark para un N dado
- * --------------------------------------------------------------- */
+
 void runBenchmark(int N)
 {
     printf("\n========================================\n");
@@ -75,9 +60,7 @@ void runBenchmark(int N)
         h_B[i] = (float)i * 1.5f;
     }
 
-    /* -------------------------------------------------------
-     * Benchmark CPU
-     * ------------------------------------------------------- */
+    
     struct timespec t0, t1;
     clock_gettime(CLOCK_MONOTONIC, &t0);
     vectorAddCPU(h_A, h_B, h_C_cpu, N);
@@ -87,9 +70,7 @@ void runBenchmark(int N)
                   + (t1.tv_nsec - t0.tv_nsec) / 1e6;
     printf("CPU:             %8.2f ms\n", cpu_ms);
 
-    /* -------------------------------------------------------
-     * Benchmark GPU
-     * ------------------------------------------------------- */
+   
     float *d_A, *d_B, *d_C;
     CUDA_CHECK(cudaMalloc(&d_A, bytes));
     CUDA_CHECK(cudaMalloc(&d_B, bytes));
@@ -135,9 +116,7 @@ void runBenchmark(int N)
     printf("GPU total:       %8.2f ms  (incluye cudaMemcpy)\n", gpu_total_ms);
     printf("Speedup kernel:  %8.2fx\n", (float)(cpu_ms / gpu_kernel_ms));
 
-    /* -------------------------------------------------------
-     * Verificación de resultados
-     * ------------------------------------------------------- */
+    
     int errors = 0;
     for (int i = 0; i < N; i++) {
         if (fabsf(h_C_gpu[i] - h_C_cpu[i]) > 1e-4f)
@@ -156,9 +135,7 @@ void runBenchmark(int N)
     free(h_A); free(h_B); free(h_C_cpu); free(h_C_gpu);
 }
 
-/* ---------------------------------------------------------------
- * Main: ejecuta benchmark para N = 1M, 4M, 16M
- * --------------------------------------------------------------- */
+
 int main(void)
 {
     printf("\n=== Benchmark vectorAdd: CPU vs GPU ===\n");
