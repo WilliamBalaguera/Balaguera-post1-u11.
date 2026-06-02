@@ -1,15 +1,4 @@
-/**
- * matMul.cu
- * Multiplicación de matrices C = A x B
- *   - Versión naïve (sin shared memory)
- *   - Versión tiled  (TILE_SIZE = 16, shared memory)
- * Benchmark CPU vs GPU naïve vs GPU tiled para N = 512 y N = 1024
- *
- * Arquitectura de Computadores — Unidad 11, Post-Contenido 1
- *
- * Compilar: nvcc -O2 -o matMul src/matMul.cu
- * Ejecutar: ./matMul
- */
+
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -19,9 +8,7 @@
 
 #define TILE 16
 
-/* ---------------------------------------------------------------
- * Macro para verificar errores CUDA
- * --------------------------------------------------------------- */
+
 #define CUDA_CHECK(call)                                                  \
     do {                                                                  \
         cudaError_t err = (call);                                         \
@@ -32,10 +19,7 @@
         }                                                                 \
     } while (0)
 
-/* ---------------------------------------------------------------
- * Kernel CUDA naïve: cada thread calcula C[row][col]
- * accediendo directamente a memoria global (sin shared memory)
- * --------------------------------------------------------------- */
+
 __global__ void matMulNaive(const float *d_A, const float *d_B,
                              float *d_C, int N)
 {
@@ -50,10 +34,7 @@ __global__ void matMulNaive(const float *d_A, const float *d_B,
     }
 }
 
-/* ---------------------------------------------------------------
- * Kernel CUDA tiled: usa shared memory para reducir accesos
- * a memoria global en un factor TILE (16x en este caso)
- * --------------------------------------------------------------- */
+
 __global__ void matMulTiled(const float *d_A, const float *d_B,
                              float *d_C, int N)
 {
@@ -96,9 +77,7 @@ __global__ void matMulTiled(const float *d_A, const float *d_B,
         d_C[row * N + col] = sum;
 }
 
-/* ---------------------------------------------------------------
- * Multiplicación de matrices en CPU (referencia O(N³))
- * --------------------------------------------------------------- */
+
 void matMulCPU(const float *h_A, const float *h_B,
                float *h_C, int N)
 {
@@ -111,9 +90,7 @@ void matMulCPU(const float *h_A, const float *h_B,
         }
 }
 
-/* ---------------------------------------------------------------
- * Función auxiliar: mide tiempo de un kernel GPU con cudaEvent
- * --------------------------------------------------------------- */
+
 float measureKernel(void (*launchFn)(const float *, const float *,
                                      float *, int,
                                      cudaEvent_t, cudaEvent_t),
@@ -152,9 +129,7 @@ void launchTiled(const float *d_A, const float *d_B, float *d_C, int N,
     CUDA_CHECK(cudaEventRecord(evStop));
 }
 
-/* ---------------------------------------------------------------
- * Ejecuta el benchmark completo para una matriz N x N
- * --------------------------------------------------------------- */
+
 void runBenchmark(int N)
 {
     printf("\n========================================\n");
@@ -181,9 +156,7 @@ void runBenchmark(int N)
         h_B[i] = (float)(rand() % 10) / 10.0f;
     }
 
-    /* -------------------------------------------------------
-     * Benchmark CPU
-     * ------------------------------------------------------- */
+    
     struct timespec t0, t1;
     clock_gettime(CLOCK_MONOTONIC, &t0);
     matMulCPU(h_A, h_B, h_C_cpu, N);
@@ -192,9 +165,7 @@ void runBenchmark(int N)
                   + (t1.tv_nsec - t0.tv_nsec) / 1e6;
     printf("CPU:             %8.2f ms\n", cpu_ms);
 
-    /* -------------------------------------------------------
-     * Preparar memoria GPU
-     * ------------------------------------------------------- */
+    
     float *d_A, *d_B, *d_C;
     CUDA_CHECK(cudaMalloc(&d_A, bytes));
     CUDA_CHECK(cudaMalloc(&d_B, bytes));
@@ -202,9 +173,7 @@ void runBenchmark(int N)
     CUDA_CHECK(cudaMemcpy(d_A, h_A, bytes, cudaMemcpyHostToDevice));
     CUDA_CHECK(cudaMemcpy(d_B, h_B, bytes, cudaMemcpyHostToDevice));
 
-    /* -------------------------------------------------------
-     * Benchmark GPU — versión naïve
-     * ------------------------------------------------------- */
+    
     float naive_ms = measureKernel(launchNaive, d_A, d_B, d_C, N);
     CUDA_CHECK(cudaGetLastError());
     CUDA_CHECK(cudaMemcpy(h_C_gpu, d_C, bytes, cudaMemcpyDeviceToHost));
@@ -215,9 +184,7 @@ void runBenchmark(int N)
         if (fabsf(h_C_gpu[i] - h_C_cpu[i]) > 1e-3f) errorsNaive++;
     printf("GPU naïve:       %8.2f ms   (errores: %d)\n", naive_ms, errorsNaive);
 
-    /* -------------------------------------------------------
-     * Benchmark GPU — versión tiled con shared memory
-     * ------------------------------------------------------- */
+    
     float tiled_ms = measureKernel(launchTiled, d_A, d_B, d_C, N);
     CUDA_CHECK(cudaGetLastError());
     CUDA_CHECK(cudaMemcpy(h_C_gpu, d_C, bytes, cudaMemcpyDeviceToHost));
@@ -240,9 +207,7 @@ void runBenchmark(int N)
     free(h_A); free(h_B); free(h_C_cpu); free(h_C_gpu);
 }
 
-/* ---------------------------------------------------------------
- * Main
- * --------------------------------------------------------------- */
+
 int main(void)
 {
     printf("\n=== Benchmark matMul: CPU vs GPU naïve vs GPU tiled ===\n");
