@@ -1,104 +1,172 @@
-# Post-Contenido 1 — CUDA Benchmark CPU vs GPU
-Arquitectura de Computadores — Unidad 11
+# Catálogo de Productos — Unidad 11
 
-**Universidad Francisco de Paula Santander — Ingeniería de Sistemas 2026**
-
----
-
-## Descripción del Entorno
-
-| Campo                  | Valor                        |
-|------------------------|------------------------------|
-| **GPU Model**          | Tesla T4                     |
-| **CUDA Version**       | 13.0                         |
-| **Driver Version**     | 580.82.07                    |
-| **CUDA Toolkit**       | 12.8 (nvcc V12.8.93)         |
-| **Memoria GPU**        | 15360 MiB                    |
-| **Sistema Operativo**  | Ubuntu 22.04 (Google Colab)  |
-| **Plataforma**         | Google Colab (GPU T4)        |
+Refactorización de una API REST en Spring Boot aplicando principios SOLID, patrones DAO/DTO y manejo centralizado de errores con `@ControllerAdvice`.
 
 ---
 
-## Compilación
+## Información del proyecto
+
+| Campo           | Detalle                               |
+|-----------------|---------------------------------------|
+| Autor           | William Balaguera — 1152439           |
+| Materia         | Arquitectura de Computadores          |
+| Unidad          | 11                                    |
+| Año             | 2026                                  |
+| Universidad     | Francisco de Paula Santander          |
+| Lenguaje        | Java 17+ / Spring Boot                |
+
+---
+
+## Descripción
+
+El proyecto implementa un CRUD completo sobre una entidad `Producto`, estructurado en capas bien definidas. El objetivo principal es aplicar de forma práctica los principios **SRP** y **DIP** de SOLID, junto con los patrones **DAO**, **DTO** y **Factory**, sobre una base de datos H2 en memoria.
+
+---
+
+## Arquitectura en capas
+
+```
+ProductoController  (@RestController /api/productos)
+        |
+        | depende de interfaz (DIP)
+        v
+ProductoService  (interfaz)
+ProductoServiceImpl  (logica de negocio)
+        |                        |
+        v                        v
+ProductoRepository          ProductoFactory
+(DAO / JpaRepository)       toEntity / toResponseDTO
+        |                        |
+        v                        v
+   Producto (Entity)     ProductoRequestDTO
+                         ProductoResponseDTO
+
+Manejo de errores transversal:
+GlobalExceptionHandler (@RestControllerAdvice)
+  |- RecursoNoEncontradoException  ->  404 + ApiError JSON
+  |- MethodArgumentNotValidException  ->  400 + ApiError JSON
+  |- Exception generica  ->  500 + ApiError JSON
+```
+
+---
+
+## Requisitos
+
+- Java 17 o superior
+- Maven 3.9.x
+
+---
+
+## Compilacion y ejecucion
 
 ```bash
-# Suma de vectores
-nvcc -O2 -o vectorAdd src/vectorAdd.cu
-./vectorAdd
+# Compilar el proyecto
+mvn compile
 
-# Multiplicación de matrices
-nvcc -O2 -o matMul src/matMul.cu
-./matMul
+# Iniciar la aplicacion
+mvn spring-boot:run
+```
+
+La aplicacion queda disponible en `http://localhost:8080`.
+
+La consola H2 se puede acceder en `http://localhost:8080/h2-console` con los siguientes datos:
+
+| Campo     | Valor                  |
+|-----------|------------------------|
+| JDBC URL  | `jdbc:h2:mem:catalogodb` |
+| Usuario   | `sa`                   |
+| Contraseña | *(vacía)*             |
+
+---
+
+## Endpoints disponibles
+
+| Metodo | URL                    | Descripcion               |
+|--------|------------------------|---------------------------|
+| GET    | `/api/productos`       | Listar todos los productos activos |
+| GET    | `/api/productos/{id}`  | Buscar producto por ID    |
+| POST   | `/api/productos`       | Crear nuevo producto      |
+| PUT    | `/api/productos/{id}`  | Actualizar producto existente |
+| DELETE | `/api/productos/{id}`  | Eliminar producto         |
+
+---
+
+## Ejemplos de respuesta
+
+### POST /api/productos — Creacion exitosa (201)
+
+```json
+{
+  "id": 1,
+  "nombre": "Laptop",
+  "precio": 3500000.0,
+  "categoria": "ELECTRONICA"
+}
+```
+
+### GET /api/productos/999 — Recurso no encontrado (404)
+
+```json
+{
+  "status": 404,
+  "error": "Not Found",
+  "mensaje": "Producto con id 999 no encontrado.",
+  "timestamp": "2026-01-01T10:00:00",
+  "path": "/api/productos/999"
+}
+```
+
+### POST /api/productos — Error de validacion (400)
+
+```json
+{
+  "status": 400,
+  "error": "Bad Request",
+  "mensaje": "nombre: El nombre es obligatorio; precio: El precio debe ser mayor a cero",
+  "timestamp": "2026-01-01T10:00:00",
+  "path": "/api/productos"
+}
 ```
 
 ---
 
-## Resultados — vectorAdd
+## Principios SOLID aplicados
 
-| N (elementos)   | CPU (ms) | GPU kernel (ms) | GPU total con memcpy (ms) | Speedup kernel |
-|-----------------|----------|-----------------|---------------------------|----------------|
-| 1 M (1 048 576) | 2.03     | 107.27          | 113.46                    | 0.02x          |
-| 4 M (4 194 304) | 9.50     | 0.19            | 19.18                     | 49.61x         |
-| 16 M (16 777 216)| 39.63   | 0.76            | 74.58                     | 51.93x         |
+**SRP — Single Responsibility Principle**
+Cada clase tiene una unica responsabilidad: el controlador gestiona HTTP, el servicio contiene la logica de negocio, el repositorio maneja el acceso a datos y la fabrica realiza la conversion entre entidades y DTOs.
 
-> **Errores de verificación:** 0 en todos los casos.
+**DIP — Dependency Inversion Principle**
+`ProductoController` depende de la interfaz `ProductoService` y no de su implementacion concreta `ProductoServiceImpl`. Spring Boot inyecta la implementacion en tiempo de ejecucion.
 
 ---
 
-## Resultados — matMul
+## Patrones de diseno aplicados
 
-| N    | CPU (ms) | GPU Naïve (ms) | GPU Tiled TILE=16 (ms) | Speedup tiling vs naïve | Speedup tiled vs CPU |
-|------|----------|----------------|------------------------|-------------------------|----------------------|
-| 512  | 302.18   | 32.54          | 0.75                   | 43.43x                  | 403.33x              |
-| 1024 | 3572.80  | 9.20           | 5.84                   | 1.58x                   | 611.68x              |
+**DAO (Data Access Object)**
+`ProductoRepository` extiende `JpaRepository` y abstrae completamente el acceso a la base de datos, desacoplando la capa de persistencia del resto de la aplicacion.
 
-> **Errores de verificación:** 0 en todos los casos.
+**DTO (Data Transfer Object)**
+Se usan dos DTOs diferenciados: `ProductoRequestDTO` recibe y valida los datos de entrada, mientras que `ProductoResponseDTO` controla los campos expuestos en la respuesta, sin exponer la entidad directamente.
 
----
-
-## Análisis de Resultados
-
-### ¿Por qué la GPU es más rápida que la CPU para N grande?
-
-La GPU Tesla T4 posee miles de núcleos CUDA que operan en paralelo bajo el modelo SIMT (Single Instruction, Multiple Threads). En el kernel `vectorAdd`, cada thread procesa exactamente un elemento del arreglo de forma simultánea. Para N = 16 M elementos se lanzan ~65 536 bloques de 256 threads, procesando todos los elementos en paralelo. La CPU, en cambio, ejecuta el bucle de forma secuencial, lo que explica que para N = 16 M tarde 39.63 ms mientras el kernel GPU solo necesita 0.76 ms (speedup de 51.93x). Para N = 1 M el resultado es inverso: la CPU tarda apenas 2.03 ms porque los datos caben en caché, mientras que el kernel GPU tarda 107.27 ms debido al overhead de inicialización del primer lanzamiento CUDA (JIT compilation).
-
-### ¿Por qué el tiempo total GPU (con memcpy) es mayor que la CPU?
-
-La transferencia de datos entre la RAM del host y la VRAM del dispositivo a través del bus PCIe tiene un overhead fijo significativo. Para N = 16 M, el kernel tarda 0.76 ms pero el tiempo total (incluyendo los dos `cudaMemcpy`) sube a 74.58 ms, superando ampliamente los 39.63 ms de la CPU. Esto demuestra que la GPU solo es ventajosa cuando el cómputo es muy intenso (como en matMul con N = 1024, donde la CPU tarda 3572.80 ms vs 5.84 ms del kernel tiled). En aplicaciones reales se minimiza este costo manteniendo los datos en VRAM durante múltiples operaciones consecutivas.
+**Factory**
+`ProductoFactory` centraliza la logica de conversion entre la entidad `Producto` y sus DTOs, evitando que esa responsabilidad quede dispersa en el servicio o el controlador.
 
 ---
 
-## Capturas de Checkpoints
+## Checkpoints verificados
 
-| Checkpoint | Descripción | Archivo |
-|------------|-------------|---------|
-| CP1 | vectorAdd compila y ejecuta, tiempos CPU vs GPU, Errores: 0 | `capturas/checkpoint1_vectorAdd.png` |
-| CP2 | matMul tiled produce resultados correctos y tabla comparativa | `capturas/checkpoint2_matMul.png` |
-| CP3 | Repositorio publicado en GitHub (público) | `capturas/checkpoint3_github.png` |
+- Checkpoint 1 — Arquitectura en capas con separacion de responsabilidades (SRP y DIP)
+- Checkpoint 2 — Creacion de producto via POST retorna status 201 con `ProductoResponseDTO`
+- Checkpoint 3 — `GlobalExceptionHandler` retorna errores estructurados en formato `ApiError` para 400, 404 y 500
 
 ---
 
-## Estructura del Repositorio
+## Capturas de evidencia
 
-```
-apellido-post1-u11/
-├── README.md
-├── src/
-│   ├── vectorAdd.cu      # Kernel suma de vectores + benchmark CPU vs GPU
-│   └── matMul.cu         # Kernel matMul naïve + tiled shared memory
-└── capturas/
-    ├── checkpoint1_vectorAdd.png
-    ├── checkpoint2_matMul.png
-    └── checkpoint3_github.png
-```
+Las capturas de las pruebas realizadas se encuentran en los archivos `img.png`, `img_1.png` e `img_2.png` en la raiz del repositorio, correspondientes a los checkpoints 2 y 3.
 
 ---
 
-## Historial de Commits
+## Licencia
 
-```
-init: estructura inicial del proyecto CUDA
-feat: kernel vectorAdd con benchmark CPU vs GPU
-feat: matMul con tiling shared memory y benchmark comparativo
-docs: README completo con tablas de resultados y análisis
-```
+Proyecto academico — Universidad Francisco de Paula Santander · 2026
